@@ -1,0 +1,1 @@
+from vacuous.adapters.base import Adapter, iter_adapters

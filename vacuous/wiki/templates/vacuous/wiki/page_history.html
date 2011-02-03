@@ -1,0 +1,15 @@
+{% load djff_tags %}
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="/static/djff.css" />
+</head>
+<body>
+    <h1>{{ page.slug }}</h1>
+    {% for commit in history %}
+    <div>
+        <div>{{ commit.revision }} by {{ commit.author }} ({{ commit.author_time|date:'r' }})</div>
+        <div>{{ commit.message }}</div>
+        {{ commit.udiff|udiff }}
+    </div>
+    {% endfor %}
+</body>

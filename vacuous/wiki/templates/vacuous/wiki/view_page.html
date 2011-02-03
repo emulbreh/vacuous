@@ -1,0 +1,9 @@
+<html>
+<body>
+    <h1>{{ page.slug }}</h1>
+    <a href="{% url vacuous.wiki.views.edit_page slug=page.slug %}">edit</a>
+    <a href="{% url vacuous.wiki.views.page_history slug=page.slug %}">history</a>
+<pre>
+{{ page.text }}
+</pre>
+</body>

@@ -1,0 +1,11 @@
+<html>
+<body>
+    <ul>
+    {% for page in pages %}
+        <li><a href="{% url vacuous.wiki.views.view_page slug=page.slug %}">{{ page.slug }}</a></li>
+    {% endfor %}
+    </ul>
+<pre>
+{{ page.text }}
+</pre>
+</body>

@@ -1,0 +1,3 @@
+WRITE = 'W'
+RENAME = 'R'
+DELETE = 'D'

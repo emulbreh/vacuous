@@ -1,0 +1,28 @@
+vacuous is a Django app for syncing version control repositories with Django models.
+
+vacuous is currently alpha quality.
+
+{{{
+from django.db import models
+from vacuous.adapters import Adapter
+
+class WikiPage(models.Model):
+    path = models.CharField(max_length=100)
+    text = models.TextField()
+
+
+class FooAdapter(Adapter):
+    flavor = 'git'
+    repo = '/path/to/repo'
+    
+    path = Adapter.proxy('path')
+    data = Adapter.proxy('text')
+
+
+with vacuous.commit_on_success(message='testcommit'):
+    WikiPage.objects.create(path='foo.txt', text='foo\nbar\nbaz')
+
+}}}
+
+== Known Bugs ==
+* pulling git repos via dulwich does not work.
