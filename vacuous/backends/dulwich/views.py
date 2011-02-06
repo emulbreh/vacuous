@@ -77,7 +77,6 @@ def require_ssl(view):
 def gitview(method, cache=None, ssl=None):
     def decorator(func):
         @require_http_methods([method])
-        @require_http_auth
         @wraps(func)
         def decorated(request, *args, **kwargs):
             try:
@@ -194,7 +193,6 @@ def git_upload_pack(request, backend=None, **kwargs):
         proto = ReceivableProtocol(read, response.write)
         handler = PatchedUploadPackHandler(WebBackend(), [backend], proto, stateless_rpc=True)
         handler.handle()
-        print response.content
         import sys
         sys.stdout.flush()
         return response
