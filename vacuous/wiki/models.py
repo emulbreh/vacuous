@@ -10,7 +10,7 @@ class Page(models.Model):
 
 
 class PageAdapter(Adapter):
-    flavor = settings.VACUOUS_WIKI_REPO_TYPE
+    flavor = settings.VACUOUS_WIKI_REPO_FLAVOR
     repo = settings.VACUOUS_WIKI_REPO_PATH
     branch = 'master'
     

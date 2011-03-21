@@ -9,15 +9,15 @@ def __init():
     if not hasattr(_cache, 'backends'):
         _cache.backends = {}
 
-def load_backend(vcs, path, cache=True):
+def load_backend(flavor, path, cache=True):
     __init()
-    key = (vcs, path)
+    key = (flavor, path)
     if key not in _cache.backends or not cache:
-        import_path = getattr(settings, 'VACUOUS_BACKENDS')[vcs]
+        import_path = getattr(settings, 'VACUOUS_BACKENDS')[flavor]
         module_path, cls_name = import_path.rsplit('.', 1)
         cls = getattr(import_module(module_path), cls_name)
         backend = cls(path)
-        backend.flavor = vcs
+        backend.flavor = flavor
         if not cache:
             return backend
         _cache.backends[key] = backend
@@ -30,8 +30,9 @@ def purge_backend_cache():
 
 
 def iter_cached_backends():
+    __init()
     return _cache.backends.itervalues()
-
+    
 request_finished.connect(lambda sender, **kwargs: purge_backend_cache())
 
     

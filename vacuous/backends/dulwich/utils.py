@@ -68,14 +68,19 @@ def get_by_path(repo, tree, path):
     return tree
 
 
-def is_same_object(a, b, path):
+def is_same_object(repo, a, b, path):
     for bit in path.split(os.path.sep):
         in_a = bit in a
         in_b = bit in b
-        if not (in_a and in_b):
-            return not (in_a or in_b)
-        a = a[bit]
-        b = b[bit]
+        if not in_a or not in_b:
+            return in_a == in_b
+        a_mode, a_sha = a[bit]
+        b_mode, b_sha = b[bit]
+        if a_mode != b_mode:
+            return False
+        a = repo[a_sha]
+        b = repo[b_sha]
+    print "cmp", a.sha().hexdigest(), b.sha().hexdigest(), a==b
     return a == b
 
 

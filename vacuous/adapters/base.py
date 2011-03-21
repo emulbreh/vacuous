@@ -9,7 +9,8 @@ _adapters = set()
 
 def iter_adapters(flavor=None):
     from django.db.models.loading import get_models
-    print get_models()
+    # force models to be loaded
+    get_models()
     print "loaded adapters", _adapters
     for adapter in _adapters:
         if flavor is None or adapter.flavor == flavor:

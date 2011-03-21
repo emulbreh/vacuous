@@ -1,12 +1,13 @@
 import re
+import os
 from base64 import b64decode
 from StringIO import StringIO
 from gzip import GzipFile
+from functools import wraps
 
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseServerError, Http404
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseServerError, HttpResponseRedirect, Http404
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from django.utils.functional import wraps
 from django.core.urlresolvers import reverse
 from django.conf.urls.defaults import url, patterns
 from django.conf import settings
@@ -23,16 +24,19 @@ from vacuous.signals import post_push
 _http_basic_auth_re = re.compile(r'^basic ([a-z0-9+/=]+)$', re.IGNORECASE)
 
 class GitServer(object):
-    def authenticate(self, username, password, request, **kwargs):
+    def authenticate(self, request, username, password, **kwargs):
         return settings.DEBUG
     
     def get_backend_or_404(self, request, **kwargs):
         raise NotImplementedError()
         
+    def realm(self, request, **kwargs):
+        return os.path.basename(kwargs['backend'].path)
+        
     def wrap(self, view):
         @wraps(view)
         def wrapped(request, **kwargs):
-            kwargs['backend'] = self.get_backend_or_404(request, *args, **kwargs)
+            kwargs['backend'] = self.get_backend_or_404(request, **kwargs)
             response = None
             match = _http_basic_auth_re.match(request.META.get('HTTP_AUTHORIZATION', ''))
             if match:
@@ -41,17 +45,23 @@ class GitServer(object):
                 except (ValueError, TypeError):
                     pass
                 else:
-                    if self.authenticate(username, password, request, *args, **kwargs):
+                    if self.authenticate(request, username, password, **kwargs):
                         response = view(request, **kwargs)
             if not response:
-                response = HttpResponse()
-                response.status_code = 401
-                response['WWW-Authenticate'] = 'Basic realm="%s"' % repo_name
+                response = HttpResponse(status=401)
+                response['WWW-Authenticate'] = 'Basic realm="%s"' % self.realm(request, **kwargs)
             return response
         return wrapped
-        
+    
+    def get_url(self, **kwargs):
+        return reverse(self.info, kwargs=kwargs)[:-1]
+    
+    def info(self, request, **kwargs):
+        return HttpResponse('git clone %s' % request.build_absolute_uri(request.path[:-1]), content_type='text/plain')
+    
     def get_urls(self):
         return patterns('',
+            url(r'^$', self.info),
             url(r'^(?P<path>HEAD)$', self.wrap(serve_text_file)),
             url(r'^(?P<path>objects/info/alternates)$', self.wrap(serve_text_file)),
             url(r'^(?P<path>objects/info/http-alternates)$', self.wrap(serve_text_file)),
@@ -68,28 +78,27 @@ class GitServer(object):
 def require_ssl(view):
     @wraps(view)
     def with_ssl(request, *args, **kwargs):
-        if not request.is_secure():
+        if not settings.DEBUG and not request.is_secure():
             return HttpResponseRedirect(request.build_absolute_uri().replace('http://', 'https://'))
         return view(request, *args, **kwargs)
     return with_ssl
 
 
-def gitview(method, cache=None, ssl=None):
+def gitview(method, cache=None, ssl=None, push=False):
     def decorator(func):
         @require_http_methods([method])
         @wraps(func)
         def decorated(request, *args, **kwargs):
             try:
                 return func(request, *args, **kwargs)
-            except Exception, e:
-                import traceback
+            except Exception as e:
                 print e
-                traceback.print_exc()
                 raise
         if cache is False:
             decorated = never_cache(decorated)
         if ssl:
             decorated = require_ssl(decorated)
+        decorated.push = push
         return decorated
     return decorator
 
@@ -114,21 +123,18 @@ def loose_object(request, backend=None, hexsha_hi=None, hexsha_lo=None, **kwargs
 
 @gitview('GET', cache=True)
 def objects_pack_pack(request, backend=None, path=None, **kwargs):
-    repo = backend.repo
-    return HttpResponse(repo.get_named_file(path), content_type='application/x-git-packed-objects')
+    return HttpResponse(backend.repo.get_named_file(path), content_type='application/x-git-packed-objects')
 
 
 @gitview('GET', cache=True)
 def objects_pack_idx(request, backend=None, path=None, **kwargs):
-    repo = backend.repo
-    return HttpResponse(repo.get_named_file(path), content_type='application/x-git-packed-objects-toc')
+    return HttpResponse(backend.repo.get_named_file(path), content_type='application/x-git-packed-objects-toc')
     
 
 @gitview('GET', cache=False)
 def objects_info_packs(request, backend=None, **kwargs):
-    repo = backend.repo
     response = HttpResponse(content_type='text/plain')
-    for pack in repo.object_store.packs:
+    for pack in backend.repo.object_store.packs:
         reponse.write('P pack-%s.pack\n' % pack.name())
     return response
 
@@ -180,37 +186,24 @@ class PatchedUploadPackHandler(UploadPackHandler):
 
 @gitview('POST', cache=False)
 def git_upload_pack(request, backend=None, **kwargs):
-    try:
-        response = HttpResponse(content_type='application/x-git-upload-pack-response')
-        
-        if request.META.get('HTTP_CONTENT_ENCODING') == 'gzip':
-            unzipped = GzipFile(mode='r', fileobj=StringIO(request.read()))
-            unzipped.seek(0)
-            read = unzipped.read
-        else:
-            read = request.read
-        
-        proto = ReceivableProtocol(read, response.write)
-        handler = PatchedUploadPackHandler(WebBackend(), [backend], proto, stateless_rpc=True)
-        handler.handle()
-        import sys
-        sys.stdout.flush()
-        return response
-    except Exception, e:
-        import traceback, sys
-        sys.stdout.flush()
-        print e
-        traceback.print_exc()
-        raise
+    response = HttpResponse(content_type='application/x-git-upload-pack-response')
+    
+    if request.META.get('HTTP_CONTENT_ENCODING') == 'gzip':
+        unzipped = GzipFile(mode='r', fileobj=StringIO(request.read()))
+        unzipped.seek(0)
+        read = unzipped.read
+    else:
+        read = request.read
+    
+    proto = ReceivableProtocol(read, response.write)
+    handler = PatchedUploadPackHandler(WebBackend(), [backend], proto, stateless_rpc=True)
+    handler.handle()
+    return response
 
 
-@gitview('POST', cache=False, ssl=True)
+@gitview('POST', cache=False, ssl=True, push=True)
 def git_receive_pack(request, backend=None, **kwargs):
-    try:
-        result = ReceivePackTask.apply_async(args=[backend.flavor, backend.path, request.read()])
-        data, refs = result.wait()
-        post_push.send_robust(sender=type(backend), backend=backend, refs=refs)
-        return HttpResponse(data, content_type='application/x-git-receive-pack-response')
-    except Exception, e:
-        print e
-        raise
+    result = ReceivePackTask.apply_async(args=[backend.flavor, backend.path, request.read()])
+    data, refs = result.wait()
+    post_push.send_robust(sender=type(backend), backend=backend, refs=refs)
+    return HttpResponse(data, content_type='application/x-git-receive-pack-response')

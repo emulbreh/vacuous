@@ -174,14 +174,14 @@ class Backend(BaseBackend):
             if path:
                 tree = repo[commit._commit.tree]
                 found = False
-                for parent in commit._commit.parents:
+                parents = commit._commit.parents
+                for parent in parents:
                     parent_tree = repo[repo[parent].tree]
-                    if not is_same_object(tree, parent_tree, path):
+                    if not is_same_object(repo, tree, parent_tree, path):
                         found = True
                         break
-                else:
-                    if get_by_path(repo, tree, path):
-                        found = True
+                if not parents and get_by_path(repo, tree, path):
+                    found = True
                 if not found:
                     continue
             result.append(commit)
@@ -255,9 +255,8 @@ class Backend(BaseBackend):
         c.tree = root.id
         c.committer = committer or self.committer
         c.author = author or c.committer
-        c.commit_time = c.author_time = int(time.time())
-        tz = 2 * 60 * 60
-        c.commit_timezone = c.author_timezone = tz
+        c.commit_time = c.author_time = int(time.localtime())
+        c.commit_timezone = c.author_timezone = time.timezone
         c.encoding = "UTF-8"
         c.message = message
         objects.add(c)
