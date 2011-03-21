@@ -41,7 +41,6 @@ class VcsSyncTests(TestCase):
     def test_adapter(self):
         backend = load_backend('git', 'foo.git')
         backend.init_repo()
-        print backend, backend.path
         
         backend.commit('initial commit', force=True)
 
@@ -68,11 +67,11 @@ class VcsSyncTests(TestCase):
         backend.commit('delete all')
         time.sleep(1)
 
-        for c in backend.history():
-            print "==" * 30
-            print c.message
-            print c.udiff
-            print
+        #for c in backend.history():
+        #    print "==" * 30
+        #    print c.message
+        #    print c.udiff
+        #    print
         
         backend.delete_repo()
 
@@ -119,20 +118,15 @@ class VcsSyncTests(TestCase):
 
         self.assertEqual(backend.read('foo/bar.txt'), r0text)
 
-        from vacuous.highlight import DiffRenderer
-        from django.template.loader import render_to_string
-        
         history = backend.history()
         self.assertEqual(len(history), 4)
-        for c in history:
-            break
-            print "--" * 30
-            print "%s: %s %s" % (c.revision, c.commit_time, c.message)
-            print c.committer, c.commit_time, c.author, c.author_time
-            print ", ".join(c.paths)
-            print c.udiff
-            with open('%s.html' % c.revision, 'w') as f:
-                f.write(render_to_string('diff/udiff.html', {'diffs': DiffRenderer(c.udiff).get_context()}).encode('utf-8'))
+        #for c in history:
+        #    break
+        #    print "--" * 30
+        #    print "%s: %s %s" % (c.revision, c.commit_time, c.message)
+        #    print c.committer, c.commit_time, c.author, c.author_time
+        #    print ", ".join(c.paths)
+        #    print c.udiff
 
         history = backend.history('foo/bar.txt')
         self.assertEqual(len(history), 2)
