@@ -24,5 +24,3 @@ with vacuous.commit_on_success(message='testcommit'):
 
 }}}
 
-== Known Bugs ==
-* pulling git repos via dulwich does not work.
