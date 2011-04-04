@@ -255,8 +255,10 @@ class Backend(BaseBackend):
         c.tree = root.id
         c.committer = committer or self.committer
         c.author = author or c.committer
-        c.commit_time = c.author_time = int(time.localtime())
-        c.commit_timezone = c.author_timezone = time.timezone
+
+        t = time.localtime()
+        c.commit_time = c.author_time = int(time.mktime(t))
+        c.commit_timezone = c.author_timezone = t.tm_isdst * 3600 - time.timezone
         c.encoding = "UTF-8"
         c.message = message
         objects.add(c)
