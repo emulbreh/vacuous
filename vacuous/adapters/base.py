@@ -35,7 +35,6 @@ class AdapterBase(type):
 
     def __new__(cls, name, bases, attrs):
         newcls = super(AdapterBase, cls).__new__(cls, name, bases, attrs)
-        
         if newcls.__module__ != cls.__module__:
             for name, writable in cls._required_properties:
                 if hasattr(newcls, name):
@@ -47,9 +46,8 @@ class AdapterBase(type):
                 if writable:
                     assert setter != getattr(Adapter, setter_name), "Adapter subclasses must provide a `%s` property or a %s() method" % (name, setter_name)
                 
-                attrs[name] = property(getter, setter)
+                setattr(newcls, name, property(getter, setter))
             _adapters.add(newcls)
-            
         return newcls
         
     def register(cls, model, descriptor='vacuous'):
@@ -187,9 +185,13 @@ class Adapter(object):
     def delete(self):
         self.get_backend().delete(self.path)
         
+    def load(self, revision):
+        backend = self.get_backend()
+        self.set_data(backend.read(self.path, revision=revision))
+        
     def sync(self, commit):
         backend = self.get_backend()
-        self.set_data(backend.read(self.path, revision=commit.revision))
+        self.load(commit.revision)
         self.obj.save()
         post_sync.send_robust(
             sender=type(self.obj), 

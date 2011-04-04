@@ -80,7 +80,6 @@ def is_same_object(repo, a, b, path):
             return False
         a = repo[a_sha]
         b = repo[b_sha]
-    print "cmp", a.sha().hexdigest(), b.sha().hexdigest(), a==b
     return a == b
 
 
