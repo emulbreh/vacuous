@@ -204,6 +204,8 @@ class Backend(BaseBackend):
         return data
         
     def do_commit(self, message='', author=None, committer=None, branch='master', parent=None):
+        if isinstance(message, unicode):
+            message = message.encode('utf-8')
         repo = self.repo
         try:
             parent = self._get_commit(parent, branch)
