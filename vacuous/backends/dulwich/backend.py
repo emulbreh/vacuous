@@ -51,7 +51,7 @@ class Backend(BaseBackend):
         repo = self.repo
         for i, bit in enumerate(bits):
             found = False
-            for mode, name, hexsha in tree.entries():
+            for mode, name, hexsha in tree.items():
                 if name == bit:
                     found = True
                     if cache and hexsha in cache:
@@ -119,7 +119,7 @@ class Backend(BaseBackend):
     def _walk(self, path, tree):
         repo = self.repo
         blobs, subtrees = [], []
-        for mode, name, hexsha in tree.entries():
+        for mode, name, hexsha in tree.items():
             if stat.S_ISREG(mode):
                 blobs.append(name)
             elif stat.S_ISDIR(mode):

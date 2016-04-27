@@ -14,7 +14,7 @@ def clean_path(path):
 
 
 def iter_blob_paths(repo, h):
-    for mode, name, hexsha in repo[h].entries():
+    for mode, name, hexsha in repo[h].items():
         if stat.S_ISREG(mode):
             yield name
         elif stat.S_ISDIR(mode):
@@ -58,7 +58,7 @@ def tree_diff(repo, a, b):
 def get_by_path(repo, tree, path):
     for bit in path.split(os.path.sep):
         found = False
-        for mode, name, hexsha in tree.entries():
+        for mode, name, hexsha in tree.items():
             if name == bit:
                 tree = repo[hexsha]
                 found = True
